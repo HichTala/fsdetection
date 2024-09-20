@@ -493,12 +493,10 @@ def main():
         data_collator=collate_fn,
         compute_metrics=eval_compute_metrics_fn,
     )
-    breakpoint()
 
     # Training
     if training_args.do_train:
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
-        breakpoint()
         trainer.save_model()
         trainer.log_metrics("train", train_result.metrics)
         trainer.save_metrics("train", train_result.metrics)
