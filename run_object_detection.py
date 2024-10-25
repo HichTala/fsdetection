@@ -34,7 +34,6 @@ from transformers import (
     AutoImageProcessor,
     AutoModelForObjectDetection,
     HfArgumentParser,
-    Trainer,
     TrainingArguments,
 )
 from transformers.image_processing_utils import BatchFeature
@@ -44,7 +43,8 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
-from src.fs_trainer import FSTrainer
+from src.transformers.fs_trainer import FSTrainer
+from src.datasets.fs_arrow_dataset import FSDataset
 
 logger = logging.getLogger(__name__)
 
@@ -387,7 +387,6 @@ def main():
     dataset = load_dataset(
         data_args.dataset_name, cache_dir=model_args.cache_dir, trust_remote_code=model_args.trust_remote_code
     )
-
     # If we don't have a validation split, split off a percentage of train as validation
     data_args.train_val_split = None if "validation" in dataset.keys() else data_args.train_val_split
     if isinstance(data_args.train_val_split, float) and data_args.train_val_split > 0.0:
@@ -399,6 +398,7 @@ def main():
     categories = dataset["train"].features["objects"].feature["category"].names
     id2label = dict(enumerate(categories))
     label2id = {v: k for k, v in id2label.items()}
+    breakpoint()
 
     # ------------------------------------------------------------------------------------------------
     # Load pretrained config, model and image processor
