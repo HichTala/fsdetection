@@ -1,17 +1,62 @@
+import importlib
+import inspect
+from contextlib import nullcontext
 from pathlib import Path
-from typing import Optional, Union, Sequence, Mapping, Dict
+from typing import Optional, Union, Sequence, Mapping, Dict, Type, List
 
 from datasets import Features, DownloadConfig, DownloadMode, Version, DatasetBuilder, Split, VerificationMode, \
-    DatasetDict, Dataset, IterableDatasetDict, IterableDataset, config
-from datasets.load import dataset_module_factory, get_dataset_builder_class
+    DatasetDict, Dataset, IterableDatasetDict, IterableDataset, config, BuilderConfig
+from datasets.load import dataset_module_factory, get_dataset_builder_class, import_main_class, configure_builder_class, \
+    DatasetModule, _InitializeConfiguredDatasetBuilder
+from datasets.naming import snakecase_to_camelcase
 from datasets.utils.info_utils import is_small_dataset
+from datasets.utils.py_utils import lock_importable_file
 
 from src.datasets.fs_builder import FSDatasetBuilder
 
 from datasets.packaged_modules import (
     _EXTENSION_TO_MODULE,
-    _PACKAGED_DATASETS_MODULES,
 )
+
+from src.datasets.packaged_modules import _PACKAGED_DATASETS_MODULES
+
+
+
+def import_main_fs_class(module_path) -> Optional[Type[FSDatasetBuilder]]:
+    """Import a module at module_path and return its main class: a DatasetBuilder"""
+    module = importlib.import_module(module_path)
+    # Find the main class in our imported module
+    module_main_cls = None
+
+    for name, obj in module.__dict__.items():
+        if inspect.isclass(obj) and issubclass(obj, FSDatasetBuilder):
+            if inspect.isabstract(obj):
+                continue
+            module_main_cls = obj
+            obj_module = inspect.getmodule(obj)
+            if obj_module is not None and module == obj_module:
+                break
+    return module_main_cls
+
+
+def get_fs_dataset_builder_class(
+    dataset_module: "DatasetModule", dataset_name: Optional[str] = None
+) -> Type[FSDatasetBuilder]:
+    with lock_importable_file(
+        dataset_module.importable_file_path
+    ) if dataset_module.importable_file_path else nullcontext():
+        builder_cls = import_main_fs_class(dataset_module.module_path)
+    if dataset_module.builder_configs_parameters.builder_configs:
+        dataset_name = dataset_name or dataset_module.builder_kwargs.get("dataset_name")
+        if dataset_name is None:
+            raise ValueError("dataset_name should be specified but got None")
+        builder_cls = configure_builder_class(
+            builder_cls,
+            builder_configs=dataset_module.builder_configs_parameters.builder_configs,
+            default_config_name=dataset_module.builder_configs_parameters.default_config_name,
+            dataset_name=dataset_name,
+        )
+    return builder_cls
 
 def load_fs_dataset_builder(
     path: str,
@@ -163,9 +208,9 @@ def load_fs_dataset_builder(
             error_msg += f'\nFor example `data_files={{"train": "path/to/data/train/*.{example_extensions[0]}"}}`'
         raise ValueError(error_msg)
 
-    builder_cls = get_dataset_builder_class(dataset_module, dataset_name=dataset_name)
+    builder_cls = get_fs_dataset_builder_class(dataset_module, dataset_name=dataset_name)
     # Instantiate the dataset builder
-    builder_instance: DatasetBuilder = builder_cls(
+    builder_instance: FSDatasetBuilder = builder_cls(
         cache_dir=cache_dir,
         dataset_name=dataset_name,
         config_name=config_name,

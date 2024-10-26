@@ -1,13 +1,12 @@
-from abc import ABC
 from typing import Union
 
-from datasets import DatasetBuilder, Split
+from datasets import DatasetBuilder, Split, ArrowBasedBuilder
 from datasets.arrow_reader import ArrowReader, ReadInstruction
 
 from src.datasets.fs_arrow_dataset import FSDataset
 
 
-class FSDatasetBuilder(DatasetBuilder, ABC):
+class FSDatasetBuilder(DatasetBuilder):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -39,3 +38,6 @@ class FSDatasetBuilder(DatasetBuilder, ABC):
         )
         fingerprint = self._get_dataset_fingerprint(split)
         return FSDataset(fingerprint=fingerprint, **dataset_kwargs)
+
+class ArrowBasedFSBuilder(FSDatasetBuilder, ArrowBasedBuilder):
+    pass

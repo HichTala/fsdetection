@@ -43,6 +43,7 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
+from src.datasets.fs_load import load_fs_dataset
 from src.transformers.fs_trainer import FSTrainer
 from src.datasets.fs_arrow_dataset import FSDataset
 
@@ -384,7 +385,7 @@ def main():
     # Load dataset, prepare splits
     # ------------------------------------------------------------------------------------------------
 
-    dataset = load_dataset(
+    dataset = load_fs_dataset(
         data_args.dataset_name, cache_dir=model_args.cache_dir, trust_remote_code=model_args.trust_remote_code
     )
     # If we don't have a validation split, split off a percentage of train as validation
