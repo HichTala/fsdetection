@@ -13,7 +13,7 @@ from datasets.packaged_modules import (
     _PACKAGED_DATASETS_MODULES,
 )
 
-def load_dataset_builder(
+def load_fs_dataset_builder(
     path: str,
     name: Optional[str] = None,
     data_dir: Optional[str] = None,
@@ -183,7 +183,7 @@ def load_dataset_builder(
 
     return builder_instance
 
-def load_dataset(
+def load_fs_dataset(
     path: str,
     name: Optional[str] = None,
     data_dir: Optional[str] = None,
@@ -406,7 +406,7 @@ def load_dataset(
     )
 
     # Create a dataset builder
-    builder_instance = load_dataset_builder(
+    builder_instance = load_fs_dataset_builder(
         path=path,
         name=name,
         data_dir=data_dir,
