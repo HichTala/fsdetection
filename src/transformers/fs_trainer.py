@@ -48,7 +48,3 @@ class FSTrainer(Trainer):
             freeze_model_process(self.model.module)
         else:
             freeze_model_process(self.model)
-
-    def _get_train_sampler(self):
-        breakpoint()
-        return

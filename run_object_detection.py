@@ -34,6 +34,7 @@ from transformers import (
     AutoImageProcessor,
     AutoModelForObjectDetection,
     HfArgumentParser,
+    Trainer,
     TrainingArguments,
 )
 from transformers.image_processing_utils import BatchFeature
@@ -44,13 +45,11 @@ from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
 from src.datasets.fs_load import load_fs_dataset
-from src.transformers.fs_trainer import FSTrainer
-from src.datasets.fs_arrow_dataset import FSDataset
 
 logger = logging.getLogger(__name__)
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.45.0.dev0")
+check_min_version("4.47.0.dev0")
 
 require_version("datasets>=2.0.0", "To fix: pip install -r examples/pytorch/object-detection/requirements.txt")
 
@@ -62,7 +61,7 @@ class ModelOutput:
 
 
 def format_image_annotations_as_coco(
-    image_id: str, categories: List[int], areas: List[float], bboxes: List[Tuple[float]]
+        image_id: str, categories: List[int], areas: List[float], bboxes: List[Tuple[float]]
 ) -> dict:
     """Format one set of image annotations to the COCO format
 
@@ -119,10 +118,10 @@ def convert_bbox_yolo_to_pascal(boxes: torch.Tensor, image_size: Tuple[int, int]
 
 
 def augment_and_transform_batch(
-    examples: Mapping[str, Any],
-    transform: A.Compose,
-    image_processor: AutoImageProcessor,
-    return_pixel_mask: bool = False,
+        examples: Mapping[str, Any],
+        transform: A.Compose,
+        image_processor: AutoImageProcessor,
+        return_pixel_mask: bool = False,
 ) -> BatchFeature:
     """Apply augmentations and format annotations in COCO format for object detection task"""
 
@@ -161,10 +160,10 @@ def collate_fn(batch: List[BatchFeature]) -> Mapping[str, Union[torch.Tensor, Li
 
 @torch.no_grad()
 def compute_metrics(
-    evaluation_results: EvalPrediction,
-    image_processor: AutoImageProcessor,
-    threshold: float = 0.0,
-    id2label: Optional[Mapping[int, str]] = None,
+        evaluation_results: EvalPrediction,
+        image_processor: AutoImageProcessor,
+        threshold: float = 0.0,
+        id2label: Optional[Mapping[int, str]] = None,
 ) -> Mapping[str, float]:
     """
     Compute mean average mAP, mAR and their variants for the object detection task.
@@ -330,7 +329,7 @@ def main():
 
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        # If we pass only one argument to the script, and it's the path to a json file,
+        # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
@@ -388,6 +387,13 @@ def main():
     dataset = load_fs_dataset(
         data_args.dataset_name, cache_dir=model_args.cache_dir, trust_remote_code=model_args.trust_remote_code
     )
+
+    if "val" in dataset.keys() and "test" not in dataset.keys():
+        dataset["test"] = dataset.pop("val")
+
+    if "val" in dataset.keys() and "validation" not in dataset.keys():
+        dataset["validation"] = dataset.pop("val")
+
     # If we don't have a validation split, split off a percentage of train as validation
     data_args.train_val_split = None if "validation" in dataset.keys() else data_args.train_val_split
     if isinstance(data_args.train_val_split, float) and data_args.train_val_split > 0.0:
@@ -399,7 +405,6 @@ def main():
     categories = dataset["train"].features["objects"].feature["category"].names
     id2label = dict(enumerate(categories))
     label2id = {v: k for k, v in id2label.items()}
-    breakpoint()
 
     # ------------------------------------------------------------------------------------------------
     # Load pretrained config, model and image processor
@@ -485,12 +490,12 @@ def main():
         compute_metrics, image_processor=image_processor, id2label=id2label, threshold=0.0
     )
 
-    trainer = FSTrainer(
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset["train"] if training_args.do_train else None,
         eval_dataset=dataset["validation"] if training_args.do_eval else None,
-        tokenizer=image_processor,
+        processing_class=image_processor,
         data_collator=collate_fn,
         compute_metrics=eval_compute_metrics_fn,
     )

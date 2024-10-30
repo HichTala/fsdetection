@@ -1,6 +1,6 @@
 from typing import Union
 
-from datasets import DatasetBuilder, Split, ArrowBasedBuilder
+from datasets import DatasetBuilder, Split, ArrowBasedBuilder, Dataset
 from datasets.arrow_reader import ArrowReader, ReadInstruction
 
 from src.datasets.fs_arrow_dataset import FSDataset
@@ -10,7 +10,7 @@ class FSDatasetBuilder(DatasetBuilder):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _as_dataset(self, split: Union[ReadInstruction, Split] = Split.TRAIN, in_memory: bool = False) -> FSDataset:
+    def _as_dataset(self, split: Union[ReadInstruction, Split] = Split.TRAIN, in_memory: bool = False) -> Union[Dataset, FSDataset]:
         """Constructs a `Dataset`.
 
         This is the internal implementation to overwrite called when user calls
@@ -37,7 +37,10 @@ class FSDatasetBuilder(DatasetBuilder):
             in_memory=in_memory,
         )
         fingerprint = self._get_dataset_fingerprint(split)
-        return FSDataset(fingerprint=fingerprint, **dataset_kwargs)
+        if split == 'train':
+            return FSDataset(fingerprint=fingerprint, **dataset_kwargs)
+        else:
+            return Dataset(fingerprint=fingerprint, **dataset_kwargs)
 
 class ArrowBasedFSBuilder(FSDatasetBuilder, ArrowBasedBuilder):
     pass
