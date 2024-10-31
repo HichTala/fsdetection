@@ -321,19 +321,30 @@ class ModelArguments:
         },
     )
 
+@dataclass
+class FewShotArguments:
+    shots: int = field(
+        default=10,
+        metadata={
+            "help": (
+                "Number of shots for few-shot object detection. "
+                "ex: 5-shots means 5 images per class."
+            )
+        }
+    )
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, FewShotArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, fs_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, fs_args = parser.parse_args_into_dataclasses()
 
     # # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -401,7 +412,7 @@ def main():
         dataset["train"] = split["train"]
         dataset["validation"] = split["test"]
 
-    dataset["train"].sampling()
+    dataset["train"].sampling(shots=fs_args.shots)
 
     # Get dataset categories and prepare mappings for label_name <-> label_id
     categories = dataset["train"].features["objects"].feature["category"].names

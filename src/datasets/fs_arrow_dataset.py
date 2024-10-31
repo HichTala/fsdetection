@@ -11,9 +11,10 @@ from datasets.table import MemoryMappedTable, InMemoryTable
 class FSDataset(Dataset):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.shots = 5
+        self.shots = None
 
-    def sampling(self):
+    def sampling(self, shots):
+        self.shots = shots
         category_list = pc.struct_field(self._data['objects'], 'category')
         indices = set(self._indices['indices'].to_pylist())
 
