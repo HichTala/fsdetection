@@ -20,6 +20,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from functools import partial
+from importlib.metadata import metadata
 from typing import Any, List, Mapping, Optional, Tuple, Union
 
 import albumentations as A
@@ -45,6 +46,7 @@ from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
 from src.datasets.fs_load import load_fs_dataset
+from src.transformers.fs_trainer import FSTrainer
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +335,37 @@ class FewShotArguments:
         }
     )
 
+    freezing_modules: list[str] = field(
+        default_factory=lambda: ['backbone'],
+        metadata={
+            "help": (
+                "List of modules to freeze during training. "
+                "default: ['backbone'] (only the backbone will be trained)."
+            )
+        }
+    )
+
+    freeze_mode: str = field(
+        default='all',
+        metadata={
+            "help": (
+                "Mode for freezing modules. "
+                "Can be all, bias, norm or half (default: all)."
+            )
+        }
+    )
+
+    freeze_at: int = field(
+        default=0,
+        metadata={
+            "help": (
+                "Freeze all backbone parameters if 0, otherwise freeze layers up to the number indicated."
+                "To take this into account, freeze_mode must be set to all."
+                "default: 0."
+            )
+        }
+    )
+
 def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
@@ -503,9 +536,10 @@ def main():
         compute_metrics, image_processor=image_processor, id2label=id2label, threshold=0.0
     )
 
-    trainer = Trainer(
+    trainer = FSTrainer(
         model=model,
         args=training_args,
+        fs_args=fs_args,
         train_dataset=dataset["train"] if training_args.do_train else None,
         eval_dataset=dataset["validation"] if training_args.do_eval else None,
         processing_class=image_processor,

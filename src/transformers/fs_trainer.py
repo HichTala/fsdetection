@@ -3,13 +3,20 @@ from transformers import Trainer
 
 class FSTrainer(Trainer):
     def __init__(self, *args, **kwargs):
+        fs_args = kwargs.pop('fs_args')
         super().__init__(*args, **kwargs)
+
+        self.freeze_model(
+            freeze_modules=fs_args.freezing_modules,
+            freeze_mode=fs_args.freeze_mode,
+            backbone_freeze_at=fs_args.freeze_at
+        )
 
     def freeze_model(self,
                      freeze_modules=['backbone'],
                      freeze_mode='all',
-                     backbone_freeze_at=0,
-                     distributed=False):
+                     backbone_freeze_at=0
+                     ):
         """
         Freeze model parameters for various modules
         When backbone_freeze == 0, freeze all backbone parameters
@@ -44,7 +51,4 @@ class FSTrainer(Trainer):
                 elif freeze_mode == 'norm':
                     freeze_model_filtered(model.backbone, ['norm'])
 
-        if distributed:
-            freeze_model_process(self.model.module)
-        else:
-            freeze_model_process(self.model)
+        freeze_model_process(self.model.model)
