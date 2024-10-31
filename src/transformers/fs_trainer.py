@@ -7,7 +7,7 @@ class FSTrainer(Trainer):
         super().__init__(*args, **kwargs)
 
         self.freeze_model(
-            freeze_modules=fs_args.freezing_modules,
+            freeze_modules=fs_args.freeze_modules,
             freeze_mode=fs_args.freeze_mode,
             backbone_freeze_at=fs_args.freeze_at
         )
@@ -31,6 +31,7 @@ class FSTrainer(Trainer):
         def freeze_model_filtered(model, unfrozen_names=[], unfrozen_type=None):
             for param_name, param in model.named_parameters():
                 if unfrozen_type is None:  # freeze all param but unfrozen_names
+                    breakpoint()
                     if all([(name not in param_name) for name in unfrozen_names]):
                         param.requires_grad = False
                 else:  # keep only a type of params unfrozen within unfrozen_names, all others are frozen
@@ -47,8 +48,17 @@ class FSTrainer(Trainer):
                 elif freeze_mode == 'half':
                     freeze(model.backbone[0], int(len(list(model.backbone.parameters())) / 2))
                 elif freeze_mode == 'bias':
+                    breakpoint()
                     freeze_model_filtered(model.backbone, ['bias'])
                 elif freeze_mode == 'norm':
                     freeze_model_filtered(model.backbone, ['norm'])
 
+        breakpoint()
         freeze_model_process(self.model.model)
+
+    def train(self, *args, **kwargs):
+        #print model module names and if they are frozen or no
+        for name, param in self.model.named_parameters():
+            print(name, param.requires_grad)
+
+        breakpoint()

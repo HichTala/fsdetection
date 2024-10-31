@@ -335,33 +335,32 @@ class FewShotArguments:
         }
     )
 
-    freezing_modules: list[str] = field(
-        default_factory=lambda: ['backbone'],
+    freeze_modules: Optional[List[str]] = field(
+        default_factory=lambda: [],
         metadata={
             "help": (
-                "List of modules to freeze during training. "
-                "default: ['backbone'] (only the backbone will be trained)."
+                "List of modules to freeze during training."
+                "Only the backbone will be trained."
             )
         }
     )
 
-    freeze_mode: str = field(
+    freeze_mode: Optional[str] = field(
         default='all',
         metadata={
             "help": (
                 "Mode for freezing modules. "
-                "Can be all, bias, norm or half (default: all)."
+                "Can be all, bias, norm or half."
             )
         }
     )
 
-    freeze_at: int = field(
+    freeze_at: Optional[int] = field(
         default=0,
         metadata={
             "help": (
                 "Freeze all backbone parameters if 0, otherwise freeze layers up to the number indicated."
                 "To take this into account, freeze_mode must be set to all."
-                "default: 0."
             )
         }
     )
