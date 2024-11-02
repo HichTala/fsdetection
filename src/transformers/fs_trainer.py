@@ -19,8 +19,13 @@ class FSTrainer(Trainer):
         When backbone_freeze == 0, freeze all backbone parameters
         Otherwise freeze up to res_#backbone_freeze_at layer.
         """
-        if len(freeze_at) == 0:
+        if len(freeze_at) == '0':
             freeze_at = [0] * max(len(freeze_modules), len(unfreeze_modules))
+        else:
+            try:
+                freeze_at = [int(x) if x != 'half' else 'half' for x in freeze_at]
+            except ValueError:
+                raise ValueError(f"Invalid value for 'freeze_at': expected an integer or the string 'half' received {set(map(type, freeze_at))}.")
 
         module_exists = False
 
@@ -97,9 +102,3 @@ class FSTrainer(Trainer):
                                              "Please ensure the module name is correct and exists in the model's architecture.")
 
         freeze_model_process(self.model.model)
-
-    def train(self, *args, **kwargs):
-        # print model module names and if they are frozen or no
-        for name, param in self.model.named_parameters():
-            print(name, param.requires_grad)
-        pass

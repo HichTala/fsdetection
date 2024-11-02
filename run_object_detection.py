@@ -356,7 +356,7 @@ class FewShotArguments:
         }
     )
 
-    freeze_at: Optional[Sequence[Union[int, str]]] = field(
+    freeze_at: Optional[List[str]] = field(
         default_factory=lambda: [],
         metadata={
             "help": (
