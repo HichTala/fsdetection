@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass, field
 from functools import partial
 from importlib.metadata import metadata
-from typing import Any, List, Mapping, Optional, Tuple, Union
+from typing import Any, List, Mapping, Optional, Tuple, Union, Sequence
 
 import albumentations as A
 import numpy as np
@@ -323,6 +323,7 @@ class ModelArguments:
         },
     )
 
+
 @dataclass
 class FewShotArguments:
     shots: int = field(
@@ -339,31 +340,33 @@ class FewShotArguments:
         default_factory=lambda: [],
         metadata={
             "help": (
-                "List of modules to freeze during training."
-                "Only the backbone will be trained."
+                "Specifies a list of modules to remain untrainable during training. "
+                "Note: This option cannot be used simultaneously with 'unfreeze_modules'."
             )
         }
     )
 
-    freeze_mode: Optional[str] = field(
-        default='all',
+    unfreeze_modules: Optional[List[str]] = field(
+        default_factory=lambda: [],
         metadata={
             "help": (
-                "Mode for freezing modules. "
-                "Can be all, bias, norm or half."
+                "Specifies a list of modules to remain trainable during training while all others will be frozen. "
+                "Note: This option cannot be used simultaneously with 'freeze_modules'."
             )
         }
     )
 
-    freeze_at: Optional[int] = field(
-        default=0,
+    freeze_at: Optional[Sequence[Union[int, str]]] = field(
+        default_factory=lambda: [],
         metadata={
             "help": (
-                "Freeze all backbone parameters if 0, otherwise freeze layers up to the number indicated."
-                "To take this into account, freeze_mode must be set to all."
+                "If set to 0, freezes all parameters; otherwise, freezes layers up to the specified number, or, if half is given, freezes half of the module. "
+                "Must be a list of the same length as 'freeze_modules' or not specified if all modules are wanted to be trained/frozen."
+                "Cannot be used if 'bias' or 'norm' is specified in either 'unfreeze_modules' or 'freeze_modules'."
             )
         }
     )
+
 
 def main():
     # See all possible arguments in src/transformers/training_args.py
