@@ -15,7 +15,6 @@
 """COCO"""
 import json
 import os
-from idlelib.iomenu import encoding
 from pathlib import Path
 
 import datasets
@@ -51,11 +50,11 @@ class COCO(datasets.GeneratorBasedBuilder):
 
     BUILDER_CONFIGS = [
         datasets.BuilderConfig(
-            name="2017", version=VERSION, description=""
+            name="dota", version=VERSION, description=""
         ),
     ]
 
-    DEFAULT_CONFIG_NAME = "2017"
+    DEFAULT_CONFIG_NAME = "dota"
 
     def _info(self):
         return datasets.DatasetInfo(
@@ -110,11 +109,11 @@ class COCO(datasets.GeneratorBasedBuilder):
                     "image": str(image_path.absolute()),
                     "width": image_metadata["width"],
                     "height": image_metadata["height"],
-                    "object": [{
+                    "objects": [{
                         "bbox_id": ann["id"],
                         "category": ann["category_id"],
                         "bbox": ann["bbox"],
                         "area": ann["area"],
                     } for ann in annotations["annotations"] if ann["image_id"] == image_metadata["id"]]
                 }
-                yield record["imgid"], record
+                yield record["image_id"], record
