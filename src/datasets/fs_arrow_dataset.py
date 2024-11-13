@@ -16,7 +16,7 @@ class FSDataset(Dataset):
     def sampling(self, shots):
         self.shots = shots
         category_list = pc.struct_field(self._data['objects'], 'category')
-        indices = set(self._indices['indices'].to_pylist())
+        indices = set(self._indices['indices'].to_pylist()) if self._indices is not None else None
 
         true_indices = {}
         for i, cats in enumerate(category_list):
@@ -24,7 +24,7 @@ class FSDataset(Dataset):
                 py_cat = cat.as_py()
                 if py_cat not in true_indices.keys():
                     true_indices[py_cat] = []
-                if i in indices:
+                if indices is None  or i in indices:
                     true_indices[py_cat].append(i)
 
         selected_indices = set()
