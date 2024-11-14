@@ -5,6 +5,8 @@ import numpy as np
 from datasets import Dataset
 import pyarrow as pa
 import pyarrow.compute as pc
+from datasets.arrow_dataset import transmit_format
+from datasets.fingerprint import fingerprint_transform
 from datasets.table import MemoryMappedTable, InMemoryTable
 
 
@@ -13,10 +15,21 @@ class FSDataset(Dataset):
         super().__init__(*args, **kwargs)
         self.shots = None
 
-    def sampling(self, shots):
+    def sampling(self, shots: int, seed: Optional[int] = None):
+
+        if self._indices is None:
+            self._indices = InMemoryTable.from_pydict({"indices": pa.array(np.arange(len(self)))})
+
         self.shots = shots
         category_list = pc.struct_field(self._data['objects'], 'category')
+
         indices = set(self._indices['indices'].to_pylist()) if self._indices is not None else None
+
+        if seed is None:
+            _, seed, pos, *_ = np.random.get_state()
+            seed = seed[pos] if pos < 624 else seed[0]
+            _ = np.random.random()  # do 1 step of rng
+        generator = np.random.default_rng(seed)
 
         true_indices = {}
         for i, cats in enumerate(category_list):
@@ -30,7 +43,7 @@ class FSDataset(Dataset):
         selected_indices = set()
         for cat in true_indices.keys():
             selected_indices = selected_indices.union(
-                set(random.sample(true_indices[cat], min(self.shots, len(true_indices[cat])))))
+                set(generator.choice(true_indices[cat], size=min(self.shots, len(true_indices[cat])), replace=False)))
 
         class_table = pc.is_in(self._indices['indices'], value_set=pa.array(selected_indices, type=pa.uint64()))
 
