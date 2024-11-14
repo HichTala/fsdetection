@@ -11,13 +11,13 @@ from datasets.load import dataset_module_factory, configure_builder_class, \
 from datasets.utils.info_utils import is_small_dataset
 from datasets.utils.py_utils import lock_importable_file
 
-from ..datasets import FSDatasetBuilder
+from .fs_builder import FSDatasetBuilder
 
 from datasets.packaged_modules import (
     _EXTENSION_TO_MODULE,
 )
 
-from ..datasets import _PACKAGED_DATASETS_MODULES
+from .packaged_modules import _PACKAGED_DATASETS_MODULES
 
 
 
