@@ -3,7 +3,7 @@ from typing import Union
 from datasets import DatasetBuilder, Split, ArrowBasedBuilder, Dataset
 from datasets.arrow_reader import ArrowReader, ReadInstruction
 
-from src.fsdetection.datasets.fs_arrow_dataset import FSDataset
+from ..datasets import FSDataset
 
 
 class FSDatasetBuilder(DatasetBuilder):
