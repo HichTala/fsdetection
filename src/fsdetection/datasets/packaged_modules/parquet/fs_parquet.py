@@ -1,6 +1,6 @@
 from datasets.packaged_modules.parquet.parquet import Parquet
 
-from src.datasets.fs_builder import ArrowBasedFSBuilder
+from src.fsdetection.datasets.fs_builder import ArrowBasedFSBuilder
 
 
 class FSParquet(ArrowBasedFSBuilder, Parquet):

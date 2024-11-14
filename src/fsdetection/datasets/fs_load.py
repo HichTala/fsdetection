@@ -2,23 +2,22 @@ import importlib
 import inspect
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Optional, Union, Sequence, Mapping, Dict, Type, List
+from typing import Optional, Union, Sequence, Mapping, Dict, Type
 
-from datasets import Features, DownloadConfig, DownloadMode, Version, DatasetBuilder, Split, VerificationMode, \
-    DatasetDict, Dataset, IterableDatasetDict, IterableDataset, config, BuilderConfig
-from datasets.load import dataset_module_factory, get_dataset_builder_class, import_main_class, configure_builder_class, \
-    DatasetModule, _InitializeConfiguredDatasetBuilder
-from datasets.naming import snakecase_to_camelcase
+from datasets import Features, DownloadConfig, DownloadMode, Version, Split, VerificationMode, \
+    DatasetDict, Dataset, IterableDatasetDict, IterableDataset, config
+from datasets.load import dataset_module_factory, configure_builder_class, \
+    DatasetModule
 from datasets.utils.info_utils import is_small_dataset
 from datasets.utils.py_utils import lock_importable_file
 
-from src.datasets.fs_builder import FSDatasetBuilder
+from src.fsdetection.datasets.fs_builder import FSDatasetBuilder
 
 from datasets.packaged_modules import (
     _EXTENSION_TO_MODULE,
 )
 
-from src.datasets.packaged_modules import _PACKAGED_DATASETS_MODULES
+from src.fsdetection.datasets.packaged_modules import _PACKAGED_DATASETS_MODULES
 
 
 
