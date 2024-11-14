@@ -5,8 +5,6 @@ import numpy as np
 from datasets import Dataset
 import pyarrow as pa
 import pyarrow.compute as pc
-from datasets.arrow_dataset import transmit_format
-from datasets.fingerprint import fingerprint_transform
 from datasets.table import MemoryMappedTable, InMemoryTable
 
 
