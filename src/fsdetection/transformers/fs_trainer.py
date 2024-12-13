@@ -19,7 +19,7 @@ class FSTrainer(Trainer):
         When backbone_freeze == 0, freeze all backbone parameters
         Otherwise freeze up to res_#backbone_freeze_at layer.
         """
-        if len(freeze_at) == '0':
+        if len(freeze_at) == 0:
             freeze_at = [0] * max(len(freeze_modules), len(unfreeze_modules))
         else:
             try:
