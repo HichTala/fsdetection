@@ -101,4 +101,4 @@ class FSTrainer(Trainer):
                             raise ValueError(f"The specified module '{unfreeze_module}' was not found in the model. "
                                              "Please ensure the module name is correct and exists in the model's architecture.")
 
-        freeze_model_process(self.model.model)
+        freeze_model_process(self.model.model if hasattr(self.model, 'model') else self.model)
