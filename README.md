@@ -18,7 +18,7 @@ pip install fsdetection
 
 ## LoRA script implementation
 
-```
+```python
 def replace_lora(model, module_name, rank):
     for sub_module_name in model._modules:
         cuurent_module_name = sub_module_name if module_name == "" else module_name + "." + sub_module_name
