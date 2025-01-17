@@ -18,6 +18,8 @@ pip install fsdetection
 
 ## LoRA script implementation
 
+https://github.com/Baijiong-Lin/LoRA-Torch
+
 ```python
 def replace_lora(model, module_name, rank):
     for sub_module_name in model._modules:
