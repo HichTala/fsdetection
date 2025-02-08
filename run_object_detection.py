@@ -25,9 +25,7 @@ from typing import Any, List, Mapping, Optional, Tuple, Union
 import albumentations as A
 import numpy as np
 import torch
-from datasets import load_dataset
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-from lora_util import replace_lora, LoRALayer
 
 import transformers
 from transformers import (
@@ -45,11 +43,13 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 
+from src.fsdetection.datasets.fs_load import load_fs_dataset
+from src.fsdetection.transformers.fs_trainer import FSTrainer
 
 logger = logging.getLogger(__name__)
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
-check_min_version("4.47.0.dev0")
+check_min_version("4.49.0.dev0")
 
 require_version("datasets>=2.0.0", "To fix: pip install -r examples/pytorch/object-detection/requirements.txt")
 
@@ -190,7 +190,7 @@ def compute_metrics(
     # Collect targets in the required format for metric computation
     for batch in targets:
         # collect image sizes, we will need them for predictions post processing
-        batch_image_sizes = torch.tensor(np.array([x["orig_size"] for x in batch]))
+        batch_image_sizes = torch.tensor([x["orig_size"] for x in batch])
         image_sizes.append(batch_image_sizes)
         # collect targets in the required format for metric computation
         # boxes were converted to YOLO format needed for model training
@@ -284,11 +284,6 @@ class ModelArguments:
         default="facebook/detr-resnet-50",
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"},
     )
-        #modified
-    lora_rank: Optional[int] = field(
-        default=8,
-        metadata={"help": "Rank for LoRA adaptation"},
-    )
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
@@ -325,7 +320,6 @@ class ModelArguments:
             )
         },
     )
-    
 
 
 @dataclass
@@ -370,6 +364,15 @@ class FewShotArguments:
             )
         }
     )
+    #lora
+    use_lora: bool = field(
+        default=False,
+        metadata={"help": "Whether to enable LoRA adaptation (True/False)."}
+    )
+    lora_rank: int = field(
+        default=0,
+        metadata={"help": "LoRA rank. If 0 or less, LoRA is disabled."}
+    )
 
 
 def main():
@@ -377,14 +380,19 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, FewShotArguments))
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         # If we pass only one argument to the script and it's the path to a json file,
         # let's parse it to get our arguments.
-        model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+        model_args, data_args, training_args, fs_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
-        model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+        model_args, data_args, training_args, fs_args = parser.parse_args_into_dataclasses()
 
+    #lora
+    if fs_args.lora_rank > 0:
+        fs_args.use_lora = True
+    else:
+        fs_args.use_lora = False
     # # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # # information sent is the one passed as arguments along with your Python/PyTorch versions.
     send_example_telemetry("run_object_detection", model_args, data_args)
@@ -434,7 +442,7 @@ def main():
     # Load dataset, prepare splits
     # ------------------------------------------------------------------------------------------------
 
-    dataset = load_dataset(
+    dataset = load_fs_dataset(
         data_args.dataset_name, cache_dir=model_args.cache_dir, trust_remote_code=model_args.trust_remote_code
     )
 
@@ -451,6 +459,8 @@ def main():
         dataset["train"] = split["train"]
         dataset["validation"] = split["test"]
 
+    dataset["train"].sampling(shots=fs_args.shots, seed=training_args.seed)
+
     # Get dataset categories and prepare mappings for label_name <-> label_id
     categories = dataset["train"].features["objects"].feature["category"].names
     id2label = dict(enumerate(categories))
@@ -465,6 +475,7 @@ def main():
         "revision": model_args.model_revision,
         "token": model_args.token,
         "trust_remote_code": model_args.trust_remote_code,
+        "_fast_init": False,
     }
     config = AutoConfig.from_pretrained(
         model_args.config_name or model_args.model_name_or_path,
@@ -478,10 +489,6 @@ def main():
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
         **common_pretrained_args,
     )
-    
-    replace_lora(model, module_name="", rank=model_args.lora_rank)
-    model.to(training_args.device)
-    
     image_processor = AutoImageProcessor.from_pretrained(
         model_args.image_processor_name or model_args.model_name_or_path,
         do_resize=True,
@@ -490,8 +497,6 @@ def main():
         pad_size={"height": data_args.image_square_size, "width": data_args.image_square_size},
         **common_pretrained_args,
     )
-        #modified
-    
 
     # ------------------------------------------------------------------------------------------------
     # Define image augmentations and dataset transforms
@@ -546,9 +551,10 @@ def main():
         compute_metrics, image_processor=image_processor, id2label=id2label, threshold=0.0
     )
 
-    trainer = Trainer(
+    trainer = FSTrainer(
         model=model,
         args=training_args,
+        fs_args=fs_args,
         train_dataset=dataset["train"] if training_args.do_train else None,
         eval_dataset=dataset["validation"] if training_args.do_eval else None,
         processing_class=image_processor,
@@ -581,11 +587,6 @@ def main():
     else:
         trainer.create_model_card(**kwargs)
 
-    for name, module in model.named_modules():
-        if isinstance(module, LoRALayer):
-            print(f"✅ LoRA Applied to: {name} -> {type(module).__name__}")
-    for name, param in model.named_parameters():
-        print(f"{name}: Trainable={param.requires_grad}")
 
 if __name__ == "__main__":
     main()
