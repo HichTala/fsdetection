@@ -1,5 +1,6 @@
 from torch import nn
 from transformers import Trainer
+import loratorch as lora
 
 
 class FSTrainer(Trainer):
@@ -12,6 +13,67 @@ class FSTrainer(Trainer):
             unfreeze_modules=fs_args.unfreeze_modules,
             freeze_at=fs_args.freeze_at
         )
+
+        if getattr(fs_args, "use_lora", False):  
+            self.replace_lora_modules(rank=getattr(fs_args, "lora_rank", 8))
+    def replace_lora_modules(self, rank=8):
+        """
+        Replace applicable layers in the model with LoRA versions.
+        """
+        model_to_modify = self.model.model if hasattr(self.model, "model") else self.model
+        self.replace_lora(model_to_modify, rank=rank)
+
+        # Log all LoRA layers applied and their types
+        print("\n🔹 Checking LoRA Layers in the Model:")
+        for name, module in model_to_modify.named_modules():
+            if isinstance(module, lora.LoRALayer):
+                print(f"✅ LoRA Applied to: {name} -> {type(module).__name__}")
+
+        # Log trainable parameters
+        print("\n🔹 Checking Trainable Parameters:")
+        for name, param in model_to_modify.named_parameters():
+            print(f"{name}: Trainable={param.requires_grad}")
+
+    def replace_lora(self, model, module_name="", rank=8):
+        """
+        Recursively replace Conv2d, MultiheadAttention, and Linear layers in the model with LoRA equivalents.
+        """
+        for sub_module_name in model._modules:
+            current_module_name = sub_module_name if module_name == "" else module_name + "." + sub_module_name
+
+            if len(model._modules[sub_module_name]._modules) > 1:
+                self.replace_lora(model._modules[sub_module_name], current_module_name, rank=rank)
+            else:
+                if isinstance(model._modules[sub_module_name], nn.Conv2d):
+                    model._modules[sub_module_name] = lora.Conv2d(
+                        in_channels=model._modules[sub_module_name].in_channels,
+                        out_channels=model._modules[sub_module_name].out_channels,
+                        kernel_size=model._modules[sub_module_name].kernel_size[0],
+                        stride=model._modules[sub_module_name].stride,
+                        padding=model._modules[sub_module_name].padding,
+                        padding_mode=model._modules[sub_module_name].padding_mode,
+                        dilation=model._modules[sub_module_name].dilation,
+                        groups=model._modules[sub_module_name].groups,
+                        bias=model._modules[sub_module_name].bias is not None,
+                        r=rank
+                    ).to('cuda')
+                elif isinstance(model._modules[sub_module_name], nn.MultiheadAttention):
+                    model._modules[sub_module_name] = lora.MultiheadAttention(
+                        model._modules[sub_module_name].embed_dim,
+                        model._modules[sub_module_name].num_heads,
+                        dropout=model._modules[sub_module_name].dropout,
+                        r=rank
+                    ).to('cuda')
+                elif isinstance(model._modules[sub_module_name], nn.Linear):
+                    model._modules[sub_module_name] = lora.Linear(
+                        model._modules[sub_module_name].in_features,
+                        model._modules[sub_module_name].out_features,
+                        bias=model._modules[sub_module_name].bias is not None,
+                        r=rank
+                    ).to('cuda')
+                else:
+                    if len(model._modules[sub_module_name]._modules) > 0:
+                        self.replace_lora(model._modules[sub_module_name], current_module_name, rank=rank)
 
     def freeze_model(self, freeze_modules, unfreeze_modules, freeze_at):
         """
