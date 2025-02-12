@@ -28,17 +28,6 @@ class FSTrainer(Trainer):
         model_to_modify = self.model.model if hasattr(self.model, "model") else self.model
         self.replace_lora(model_to_modify, rank=rank)
 
-        # Log all LoRA layers applied and their types
-        print("\n🔹 Checking LoRA Layers in the Model:")
-        for name, module in model_to_modify.named_modules():
-            if isinstance(module, lora.LoRALayer):
-                print(f"✅ LoRA Applied to: {name} -> {type(module).__name__}")
-
-        # Log trainable parameters
-        print("\n🔹 Checking Trainable Parameters:")
-        for name, param in model_to_modify.named_parameters():
-            print(f"{name}: Trainable={param.requires_grad}")
-
     def replace_lora(self, model, module_name="", rank=8):
         """
         Recursively replace Conv2d, MultiheadAttention, and Linear layers in the model with LoRA equivalents.
