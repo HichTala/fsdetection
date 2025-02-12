@@ -1,3 +1,5 @@
+from typing import Optional
+
 from torch import nn
 from transformers import Trainer
 import loratorch as lora
@@ -14,8 +16,11 @@ class FSTrainer(Trainer):
             freeze_at=fs_args.freeze_at
         )
 
-        if getattr(fs_args, "use_lora", False):  
-            self.replace_lora_modules(rank=getattr(fs_args, "lora_rank", 8))
+        self.use_lora = fs_args.use_lora
+
+        if self.use_lora:
+            self.replace_lora_modules(rank=fs_args.lora_rank)
+
     def replace_lora_modules(self, rank=8):
         """
         Replace applicable layers in the model with LoRA versions.
@@ -87,7 +92,8 @@ class FSTrainer(Trainer):
             try:
                 freeze_at = [int(x) if x != 'half' else 'half' for x in freeze_at]
             except ValueError:
-                raise ValueError(f"Invalid value for 'freeze_at': expected an integer or the string 'half' received {set(map(type, freeze_at))}.")
+                raise ValueError(
+                    f"Invalid value for 'freeze_at': expected an integer or the string 'half' received {set(map(type, freeze_at))}.")
 
         module_exists = False
 
@@ -164,3 +170,41 @@ class FSTrainer(Trainer):
                                              "Please ensure the module name is correct and exists in the model's architecture.")
 
         freeze_model_process(self.model.model if hasattr(self.model, 'model') else self.model)
+
+    def save_model(self, output_dir: Optional[str] = None, _internal_call: bool = False):
+        """
+        Will save the lora wieghts if `use_lora=True`.
+
+        Will only save from the main process.
+        """
+        if self.use_lora:
+            # If we are executing this function, we are the process zero, so we don't check for that.
+            output_dir = output_dir if output_dir is not None else self.args.output_dir
+            os.makedirs(output_dir, exist_ok=True)
+            logger.info(f"Saving lora wieghts checkpoint to {output_dir}")
+
+            supported_classes = (PreTrainedModel,) if not is_peft_available() else (PreTrainedModel, PeftModel)
+            state_dict = lora.lora_state_dict(self.model)
+            # Save a trained model and configuration using `save_pretrained()`.
+            # They can then be reloaded using `from_pretrained()`
+            if not isinstance(self.model, supported_classes):
+                logger.info("Trainer.model is not a `PreTrainedModel`, only saving its state dict.")
+                if self.args.save_safetensors:
+                    safetensors.torch.save_file(
+                        state_dict, os.path.join(output_dir, SAFE_WEIGHTS_NAME), metadata={"format": "pt"}
+                    )
+                else:
+                    torch.save(state_dict, os.path.join(output_dir, WEIGHTS_NAME))
+            else:
+                self.model.save_pretrained(
+                    output_dir, state_dict=state_dict, safe_serialization=self.args.save_safetensors
+                )
+
+            if self.processing_class is not None:
+                self.processing_class.save_pretrained(output_dir)
+
+            # Good practice: save your training arguments together with the trained model
+            torch.save(self.args, os.path.join(output_dir, TRAINING_ARGS_NAME))
+
+        else:
+            super().save_model(output_dir, _internal_call)
