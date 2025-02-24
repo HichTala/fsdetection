@@ -1,10 +1,18 @@
 import os
 from typing import Optional
 
+import torch
 from torch import nn
 from transformers import Trainer
+from transformers.utils import logging
+from transformers.modeling_utils import PreTrainedModel
 import loratorch as lora
 
+
+logger = logging.get_logger(__name__)
+
+# Name of the files used for checkpointing
+TRAINING_ARGS_NAME = "training_args.bin"
 
 class FSTrainer(Trainer):
     def __init__(self, *args, **kwargs):
@@ -173,7 +181,7 @@ class FSTrainer(Trainer):
             os.makedirs(output_dir, exist_ok=True)
             logger.info(f"Saving lora wieghts checkpoint to {output_dir}")
 
-            supported_classes = (PreTrainedModel,) if not is_peft_available() else (PreTrainedModel, PeftModel)
+            supported_classes = (PreTrainedModel,)
             state_dict = lora.lora_state_dict(self.model)
             # Save a trained model and configuration using `save_pretrained()`.
             # They can then be reloaded using `from_pretrained()`
