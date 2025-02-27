@@ -34,7 +34,7 @@ class FSTrainer(Trainer):
         """
         Replace applicable layers in the model with LoRA versions.
         """
-        self.replace_lora(self.model.backbone, rank=128)
+        self.replace_lora(self.model.backbone, rank=8)
 
         # Log all LoRA layers applied and their types
         print("\n🔹 Checking LoRA Layers in the Model:")
@@ -58,6 +58,7 @@ class FSTrainer(Trainer):
                 self.replace_lora(model._modules[sub_module_name], current_module_name, rank=rank)
             else:
                 if isinstance(model._modules[sub_module_name], nn.Conv2d):
+                    weights = model._modules[sub_module_name].weight
                     model._modules[sub_module_name] = lora.Conv2d(
                         in_channels=model._modules[sub_module_name].in_channels,
                         out_channels=model._modules[sub_module_name].out_channels,
@@ -70,6 +71,7 @@ class FSTrainer(Trainer):
                         bias=model._modules[sub_module_name].bias is not None,
                         r=rank
                     ).to('cuda')
+                    model._modules[sub_module_name].weight = weights
                 elif isinstance(model._modules[sub_module_name], nn.MultiheadAttention):
                     model._modules[sub_module_name] = lora.MultiheadAttention(
                         model._modules[sub_module_name].embed_dim,
@@ -77,13 +79,16 @@ class FSTrainer(Trainer):
                         dropout=model._modules[sub_module_name].dropout,
                         r=rank
                     ).to('cuda')
+                    breakpoint()
                 elif isinstance(model._modules[sub_module_name], nn.Linear):
+                    weights = model._modules[sub_module_name].weight
                     model._modules[sub_module_name] = lora.Linear(
                         model._modules[sub_module_name].in_features,
                         model._modules[sub_module_name].out_features,
                         bias=model._modules[sub_module_name].bias is not None,
                         r=rank
                     ).to('cuda')
+                    model._modules[sub_module_name].weight = weights
                 else:
                     if len(model._modules[sub_module_name]._modules) > 0:
                         self.replace_lora(model._modules[sub_module_name], current_module_name, rank=rank)
