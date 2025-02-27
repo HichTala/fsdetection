@@ -19,23 +19,33 @@ class FSTrainer(Trainer):
         fs_args = kwargs.pop('fs_args')
         super().__init__(*args, **kwargs)
 
-        self.freeze_model(
-            freeze_modules=fs_args.freeze_modules,
-            unfreeze_modules=fs_args.unfreeze_modules,
-            freeze_at=fs_args.freeze_at
-        )
-
         self.use_lora = fs_args.use_lora
 
         if self.use_lora:
             self.replace_lora_modules(rank=fs_args.lora_rank)
+        else:
+            self.freeze_model(
+                freeze_modules=fs_args.freeze_modules,
+                unfreeze_modules=fs_args.unfreeze_modules,
+                freeze_at=fs_args.freeze_at
+            )
 
     def replace_lora_modules(self, rank=8):
         """
         Replace applicable layers in the model with LoRA versions.
         """
-        model_to_modify = self.model.model if hasattr(self.model, "model") else self.model
-        self.replace_lora(model_to_modify, rank=rank)
+        self.replace_lora(self.model.backbone, rank=128)
+
+        # Log all LoRA layers applied and their types
+        print("\n🔹 Checking LoRA Layers in the Model:")
+        for name, module in self.model.named_modules():
+            if isinstance(module, lora.LoRALayer):
+                print(f"✅ LoRA Applied to: {name} -> {type(module).__name__}")
+
+        # Log trainable parameters
+        print("\n🔹 Checking Trainable Parameters:")
+        for name, param in self.model.named_parameters():
+            print(f"{name}: Trainable={param.requires_grad}")
 
     def replace_lora(self, model, module_name="", rank=8):
         """
