@@ -1,38 +1,50 @@
+import os
+from typing import Optional
+
+import torch
 from torch import nn
 from transformers import Trainer
+from transformers.utils import logging
+from transformers.modeling_utils import PreTrainedModel
 import loratorch as lora
 
+
+logger = logging.get_logger(__name__)
+
+# Name of the files used for checkpointing
+TRAINING_ARGS_NAME = "training_args.bin"
 
 class FSTrainer(Trainer):
     def __init__(self, *args, **kwargs):
         fs_args = kwargs.pop('fs_args')
         super().__init__(*args, **kwargs)
 
-        self.freeze_model(
-            freeze_modules=fs_args.freeze_modules,
-            unfreeze_modules=fs_args.unfreeze_modules,
-            freeze_at=fs_args.freeze_at
-        )
+        self.use_lora = fs_args.use_lora
 
-        if getattr(fs_args, "use_lora", False):
-            self.replace_lora_modules(rank=getattr(fs_args, "lora_rank", 8))
+        if self.use_lora:
+            self.replace_lora_modules(rank=fs_args.lora_rank)
+        else:
+            self.freeze_model(
+                freeze_modules=fs_args.freeze_modules,
+                unfreeze_modules=fs_args.unfreeze_modules,
+                freeze_at=fs_args.freeze_at
+            )
 
     def replace_lora_modules(self, rank=8):
         """
         Replace applicable layers in the model with LoRA versions.
         """
-        model_to_modify = self.model.model if hasattr(self.model, "model") else self.model
-        self.replace_lora(model_to_modify, rank=rank)
+        self.replace_lora(self.model.backbone, rank=8)
 
         # Log all LoRA layers applied and their types
         print("\n🔹 Checking LoRA Layers in the Model:")
-        for name, module in model_to_modify.named_modules():
+        for name, module in self.model.named_modules():
             if isinstance(module, lora.LoRALayer):
                 print(f"✅ LoRA Applied to: {name} -> {type(module).__name__}")
 
         # Log trainable parameters
         print("\n🔹 Checking Trainable Parameters:")
-        for name, param in model_to_modify.named_parameters():
+        for name, param in self.model.named_parameters():
             print(f"{name}: Trainable={param.requires_grad}")
 
     def replace_lora(self, model, module_name="", rank=8):
@@ -46,6 +58,7 @@ class FSTrainer(Trainer):
                 self.replace_lora(model._modules[sub_module_name], current_module_name, rank=rank)
             else:
                 if isinstance(model._modules[sub_module_name], nn.Conv2d):
+                    weights = model._modules[sub_module_name].weight
                     model._modules[sub_module_name] = lora.Conv2d(
                         in_channels=model._modules[sub_module_name].in_channels,
                         out_channels=model._modules[sub_module_name].out_channels,
@@ -58,6 +71,7 @@ class FSTrainer(Trainer):
                         bias=model._modules[sub_module_name].bias is not None,
                         r=rank
                     ).to('cuda')
+                    model._modules[sub_module_name].weight = weights
                 elif isinstance(model._modules[sub_module_name], nn.MultiheadAttention):
                     model._modules[sub_module_name] = lora.MultiheadAttention(
                         model._modules[sub_module_name].embed_dim,
@@ -65,13 +79,16 @@ class FSTrainer(Trainer):
                         dropout=model._modules[sub_module_name].dropout,
                         r=rank
                     ).to('cuda')
+                    breakpoint()
                 elif isinstance(model._modules[sub_module_name], nn.Linear):
+                    weights = model._modules[sub_module_name].weight
                     model._modules[sub_module_name] = lora.Linear(
                         model._modules[sub_module_name].in_features,
                         model._modules[sub_module_name].out_features,
                         bias=model._modules[sub_module_name].bias is not None,
                         r=rank
                     ).to('cuda')
+                    model._modules[sub_module_name].weight = weights
                 else:
                     if len(model._modules[sub_module_name]._modules) > 0:
                         self.replace_lora(model._modules[sub_module_name], current_module_name, rank=rank)
@@ -166,3 +183,41 @@ class FSTrainer(Trainer):
                                              "Please ensure the module name is correct and exists in the model's architecture.")
 
         freeze_model_process(self.model.model if hasattr(self.model, 'model') else self.model)
+
+    def save_model(self, output_dir: Optional[str] = None, _internal_call: bool = False):
+        """
+        Will save the lora wieghts if `use_lora=True`.
+
+        Will only save from the main process.
+        """
+        if self.use_lora:
+            # If we are executing this function, we are the process zero, so we don't check for that.
+            output_dir = output_dir if output_dir is not None else self.args.output_dir
+            os.makedirs(output_dir, exist_ok=True)
+            logger.info(f"Saving lora wieghts checkpoint to {output_dir}")
+
+            supported_classes = (PreTrainedModel,)
+            state_dict = lora.lora_state_dict(self.model)
+            # Save a trained model and configuration using `save_pretrained()`.
+            # They can then be reloaded using `from_pretrained()`
+            if not isinstance(self.model, supported_classes):
+                logger.info("Trainer.model is not a `PreTrainedModel`, only saving its state dict.")
+                if self.args.save_safetensors:
+                    safetensors.torch.save_file(
+                        state_dict, os.path.join(output_dir, SAFE_WEIGHTS_NAME), metadata={"format": "pt"}
+                    )
+                else:
+                    torch.save(state_dict, os.path.join(output_dir, WEIGHTS_NAME))
+            else:
+                self.model.save_pretrained(
+                    output_dir, state_dict=state_dict, safe_serialization=self.args.save_safetensors
+                )
+
+            if self.processing_class is not None:
+                self.processing_class.save_pretrained(output_dir)
+
+            # Good practice: save your training arguments together with the trained model
+            torch.save(self.args, os.path.join(output_dir, TRAINING_ARGS_NAME))
+
+        else:
+            super().save_model(output_dir, _internal_call)
