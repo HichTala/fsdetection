@@ -14,8 +14,9 @@ class FSTrainer(Trainer):
             freeze_at=fs_args.freeze_at
         )
 
-        if getattr(fs_args, "use_lora", False):  
+        if getattr(fs_args, "use_lora", False):
             self.replace_lora_modules(rank=getattr(fs_args, "lora_rank", 8))
+
     def replace_lora_modules(self, rank=8):
         """
         Replace applicable layers in the model with LoRA versions.
@@ -87,7 +88,8 @@ class FSTrainer(Trainer):
             try:
                 freeze_at = [int(x) if x != 'half' else 'half' for x in freeze_at]
             except ValueError:
-                raise ValueError(f"Invalid value for 'freeze_at': expected an integer or the string 'half' received {set(map(type, freeze_at))}.")
+                raise ValueError(
+                    f"Invalid value for 'freeze_at': expected an integer or the string 'half' received {set(map(type, freeze_at))}.")
 
         module_exists = False
 
