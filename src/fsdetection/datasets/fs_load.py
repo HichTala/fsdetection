@@ -19,7 +19,7 @@ from datasets.packaged_modules import (
 )
 
 from .packaged_modules import _PACKAGED_DATASETS_MODULES
-from .. import FSDataset
+from .fs_arrow_dataset import FSDataset
 
 logger = get_logger(__name__)
 
