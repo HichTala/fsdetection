@@ -19,6 +19,7 @@ from datasets.packaged_modules import (
 )
 
 from .packaged_modules import _PACKAGED_DATASETS_MODULES
+from .. import FSDataset
 
 logger = get_logger(__name__)
 
@@ -222,7 +223,7 @@ def load_fs_dataset(
     num_proc: Optional[int] = None,
     storage_options: Optional[dict] = None,
     **config_kwargs,
-) -> Union[DatasetDict, Dataset, IterableDatasetDict, IterableDataset]:
+) -> Union[DatasetDict, FSDataset, IterableDatasetDict, IterableDataset]:
     """Load a dataset from the Hugging Face Hub, or a local dataset.
 
     You can find the list of datasets on the [Hub](https://huggingface.co/datasets) or with [`huggingface_hub.list_datasets`].
