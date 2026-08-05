@@ -8,7 +8,10 @@ from ..datasets import FSDataset
 
 class FSDatasetBuilder(DatasetBuilder):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except TypeError:
+            kwargs.pop("dataset_name")
 
     def _as_dataset(self, split: Union[ReadInstruction, Split] = Split.TRAIN, in_memory: bool = False) -> Union[Dataset, FSDataset]:
         """Constructs a `Dataset`.
