@@ -92,7 +92,7 @@ def import_main_fs_class(module_path):
 
 
 def get_fs_dataset_builder_class(
-    dataset_module, dataset_name = None
+    dataset_module: "DatasetModule", dataset_name: Optional[str] = None
 ):
     builder_cls = import_main_fs_class(dataset_module.module_path)
     if dataset_module.builder_configs_parameters.builder_configs:
@@ -108,19 +108,19 @@ def get_fs_dataset_builder_class(
     return builder_cls
 
 def load_fs_dataset_builder(
-    path,
-    name = None,
-    data_dir = None,
-    data_files = None,
-    cache_dir = None,
-    features = None,
-    download_config = None,
-    download_mode = None,
-    revision = None,
-    token = None,
-    storage_options = None,
+    path: str,
+    name: Optional[str] = None,
+    data_dir: Optional[str] = None,
+    data_files: Optional[Union[str, Sequence[str], Mapping[str, Union[str, Sequence[str]]]]] = None,
+    cache_dir: Optional[str] = None,
+    features: Optional[Features] = None,
+    download_config: Optional[DownloadConfig] = None,
+    download_mode: Optional[Union[DownloadMode, str]] = None,
+    revision: Optional[Union[str, Version]] = None,
+    token: Optional[Union[bool, str]] = None,
+    storage_options: Optional[dict] = None,
     **config_kwargs,
-) :
+) -> FSDatasetBuilder:
     """Load a dataset builder which can be used to:
 
     - Inspect general information that is required to build a dataset (cache directory, config, dataset info, features, data files, etc.)
@@ -256,25 +256,25 @@ def load_fs_dataset_builder(
     return builder_instance
 
 def load_fs_dataset(
-    path,
-    name = None,
-    data_dir = None,
-    data_files = None,
-    split = None,
-    cache_dir = None,
-    features = None,
-    download_config = None,
-    download_mode = None,
-    verification_mode = None,
-    keep_in_memory = None,
-    save_infos = False,
-    revision = None,
-    token = None,
-    streaming = False,
-    num_proc = None,
-    storage_options = None,
+    path: str,
+    name: Optional[str] = None,
+    data_dir: Optional[str] = None,
+    data_files: Optional[Union[str, Sequence[str], Mapping[str, Union[str, Sequence[str]]]]] = None,
+    split: Optional[Union[str, Split, list[str], list[Split]]] = None,
+    cache_dir: Optional[str] = None,
+    features: Optional[Features] = None,
+    download_config: Optional[DownloadConfig] = None,
+    download_mode: Optional[Union[DownloadMode, str]] = None,
+    verification_mode: Optional[Union[VerificationMode, str]] = None,
+    keep_in_memory: Optional[bool] = None,
+    save_infos: bool = False,
+    revision: Optional[Union[str, Version]] = None,
+    token: Optional[Union[bool, str]] = None,
+    streaming: bool = False,
+    num_proc: Optional[int] = None,
+    storage_options: Optional[dict] = None,
     **config_kwargs,
-) :
+) -> Union[DatasetDict, FSDataset, IterableDatasetDict, IterableDataset]:
     """Load a dataset from the Hugging Face Hub, or a local dataset.
 
     You can find the list of datasets on the [Hub](https://huggingface.co/datasets) or with [`huggingface_hub.list_datasets`].
