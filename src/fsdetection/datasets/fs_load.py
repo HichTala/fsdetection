@@ -257,8 +257,7 @@ def load_fs_dataset_builder(
         **builder_kwargs,
         **config_kwargs,
     )
-    if hasattr(builder_instance, "_use_legacy_cache_dir_if_possible"):
-        builder_instance._use_legacy_cache_dir_if_possible(dataset_module)
+    builder_instance._use_legacy_cache_dir_if_possible(dataset_module)
 
     return builder_instance
 
