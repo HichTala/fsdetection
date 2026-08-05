@@ -237,7 +237,7 @@ def load_fs_dataset_builder(
 
     builder_cls = get_fs_dataset_builder_class(dataset_module, dataset_name=dataset_name)
     # Instantiate the dataset builder
-    if  "hash" in builder_kwargs:
+    if hasattr(builder_kwargs, "hash"):
         builder_kwargs.pop("hash")
     builder_instance: FSDatasetBuilder = builder_cls(
         cache_dir=cache_dir,
