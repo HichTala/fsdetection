@@ -95,7 +95,7 @@ def get_fs_dataset_builder_class(
     dataset_module, dataset_name = None
 ):
     builder_cls = import_main_fs_class(dataset_module.module_path)
-    if getattr(dataset_module, "builder_configs_parameters.default_config_name", None):
+    if dataset_module.builder_configs_parameters.builder_configs:
         dataset_name = dataset_name or dataset_module.builder_kwargs.get("dataset_name")
         if dataset_name is None:
             raise ValueError("dataset_name should be specified but got None")
@@ -217,7 +217,7 @@ def load_fs_dataset_builder(
     data_dir = builder_kwargs.pop("data_dir", data_dir)
     data_files = builder_kwargs.pop("data_files", data_files)
     config_name = builder_kwargs.pop(
-        "config_name", name or getattr(dataset_module, "builder_configs_parameters.default_config_name", None)
+        "config_name", name or dataset_module.builder_configs_parameters.default_config_name
     )
     dataset_name = builder_kwargs.pop("dataset_name", None)
     info = dataset_module.dataset_infos.get(config_name) if dataset_module.dataset_infos else None
