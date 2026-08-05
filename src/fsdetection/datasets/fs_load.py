@@ -220,7 +220,7 @@ def load_fs_dataset_builder(
         "config_name", name or getattr(dataset_module, "builder_configs_parameters.default_config_name", None)
     )
     dataset_name = builder_kwargs.pop("dataset_name", None)
-    info = dataset_module.dataset_infos.get(config_name) if getattr(dataset_module, "dataset_infos") else None
+    info = dataset_module.dataset_infos.get(config_name) if hasattr(dataset_module, "dataset_infos") and dataset_module.dataset_infos else None
 
     if (
         path in _PACKAGED_DATASETS_MODULES
