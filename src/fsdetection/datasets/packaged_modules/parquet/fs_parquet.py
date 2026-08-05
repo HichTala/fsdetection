@@ -4,4 +4,4 @@ from ...fs_builder import ArrowBasedFSBuilder
 
 
 class FSParquet(ArrowBasedFSBuilder, Parquet):
-    _cache_dir = None
+    pass
