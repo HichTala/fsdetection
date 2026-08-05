@@ -6,7 +6,11 @@ from typing import Optional, Union, Sequence, Mapping, Dict, Type
 
 from datasets import Features, DownloadConfig, DownloadMode, Version, Split, VerificationMode, \
     DatasetDict, Dataset, IterableDatasetDict, IterableDataset, config
-from datasets.features.features import _fix_for_backward_compatible_features
+try:
+    from datasets.features.features import _fix_for_backward_compatible_features
+except ImportError:
+    def _fix_for_backward_compatible_features(features):
+        return features
 from datasets.load import dataset_module_factory, configure_builder_class, \
     DatasetModule
 from datasets.utils.info_utils import is_small_dataset
