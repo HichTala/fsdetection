@@ -488,10 +488,6 @@ def load_fs_dataset(
     if streaming:
         return builder_instance.as_streaming_dataset(split=split)
 
-    builder_instance._cache_dir_root = str(config.HF_DATASETS_CACHE)
-    builder_instance.config, builder_instance.config_id = builder_instance._create_builder_config(config_name=None, custom_features=features, **config_kwargs)
-    builder_instance._cache_dir = builder_instance._build_cache_dir()
-
     # Download and prepare data
     builder_instance.download_and_prepare(
         download_config=download_config,
