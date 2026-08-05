@@ -11,55 +11,8 @@ try:
 except ImportError:
     def _fix_for_backward_compatible_features(features):
         return features
-from datasets.load import dataset_module_factory, DatasetModule
-
-try:
-    from datasets.load import configure_builder_class
-except ImportError:
-    # Fallback implementation for older versions of Hugging Face datasets
-    def snakecase_to_camelcase(name: str) -> str:
-        return "".join(word.capitalize() for word in re.split(r"[^a-zA-Z0-9]", name) if word)
-
-
-    def configure_builder_class(
-            builder_cls: Type,
-            builder_configs: list,
-            default_config_name: Optional[str],
-            dataset_name: str,
-    ) -> Type:
-        """Dynamically create a builder class with custom builder configs."""
-
-        class ConfiguredDatasetBuilder(builder_cls):
-            BUILDER_CONFIGS = builder_configs
-            DEFAULT_CONFIG_NAME = default_config_name
-            __module__ = builder_cls.__module__
-
-            def __reduce__(self):
-                return (
-                    _InitializeConfiguredDatasetBuilder(),
-                    (builder_cls, self.BUILDER_CONFIGS, self.DEFAULT_CONFIG_NAME, dataset_name),
-                    self.__dict__.copy(),
-                )
-
-        # Give the dynamically created class a readable name
-        class_name = f"{builder_cls.__name__.capitalize()}{snakecase_to_camelcase(dataset_name)}"
-        ConfiguredDatasetBuilder.__name__ = class_name
-        ConfiguredDatasetBuilder.__qualname__ = class_name
-
-        return ConfiguredDatasetBuilder
-
-
-    class _InitializeConfiguredDatasetBuilder:
-        def __call__(self, builder_cls, builder_configs, default_config_name, name):
-            obj = _InitializeConfiguredDatasetBuilder()
-            obj.__class__ = configure_builder_class(
-                builder_cls,
-                builder_configs=builder_configs,
-                default_config_name=default_config_name,
-                dataset_name=name,
-            )
-            return obj
-
+from datasets.load import dataset_module_factory, configure_builder_class, \
+    DatasetModule
 from datasets.utils.info_utils import is_small_dataset
 from datasets.utils.logging import get_logger
 
